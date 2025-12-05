@@ -1158,7 +1158,7 @@
                                 <div class="mb-3">
                                     <label for="beneficiaryName" class="form-label">Beneficiary Name</label>
                                     <input type="text" class="form-control" name="beneficiaryName" id="beneficiaryName"
-                                        required placeholder="Exact Name in Bank" pattern="[A-Za-z ]+"
+                                        required placeholder="Exact Name in Bank (required)" pattern="[A-Za-z ]+"
                                         title="Only alphabets and spaces allowed">
                                 </div>
                             </div>
@@ -1259,7 +1259,7 @@
                                     <label for="customerTokenNo" class="form-label">Token No.</label>
                                     <input type="text" name="customerTokenNo" class="form-control" id="customerTokenNo"
                                         pattern="[A-Za-z0-9-]+" title="Only letters, numbers and hyphens allowed"
-                                        placeholder="Enter token number">
+                                        placeholder="Enter token number (required)" required>
                                 </div>
                             </div>
                         </div>
@@ -3389,6 +3389,14 @@
             const statusFilter = document.getElementById('statusFilter').value;
             const tableRows = document.querySelectorAll('#stylistsTableBody tr');
 
+            let visibleCount = 0;
+            let activeCount = 0;
+            let locations = new Set();
+            let thisMonthCount = 0;
+
+            const currentMonth = new Date().getMonth();
+            const currentYear = new Date().getFullYear();
+
             tableRows.forEach(row => {
                 if (row.cells.length === 1) return; // Skip empty state row
 
@@ -3398,17 +3406,40 @@
                 const phone = stylistData.phone.toLowerCase();
                 const location = stylistData.location;
                 const status = stylistData.status;
+                const regDate = new Date(stylistData.date);
 
                 const matchesSearch = name.includes(searchTerm) || code.includes(searchTerm) || phone.includes(searchTerm);
                 const matchesLocation = !locationFilter || location === locationFilter;
                 const matchesStatus = !statusFilter || status === statusFilter;
 
-                if (matchesSearch && matchesLocation && matchesStatus) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
+                const isVisible = matchesSearch && matchesLocation && matchesStatus;
+                row.style.display = isVisible ? '' : 'none';
+
+                if (isVisible) {
+                    visibleCount++;
+                    if (status.toLowerCase() === 'active') {
+                        activeCount++;
+                    }
+                    if (location && location !== 'N/A' && location !== 'Unknown') {
+                        locations.add(location);
+                    }
+                    if (regDate.getMonth() === currentMonth && regDate.getFullYear() === currentYear) {
+                        thisMonthCount++;
+                    }
                 }
             });
+
+            // Update stats cards with filtered data
+            document.getElementById('totalStylists').textContent = visibleCount;
+            document.getElementById('activeStylists').textContent = activeCount;
+            document.getElementById('totalLocations').textContent = locations.size;
+            document.getElementById('newStylists').textContent = thisMonthCount;
+
+            // Also update main dashboard stylist card if visible
+            const dashboardStylistCard = document.querySelector('.dashboard-section .row .col-md-3:nth-child(1) .value');
+            if (dashboardStylistCard) {
+                dashboardStylistCard.textContent = visibleCount;
+            }
         }
 
         // Clear all filters
@@ -3416,7 +3447,17 @@
             document.getElementById('stylistSearch').value = '';
             document.getElementById('locationFilter').value = '';
             document.getElementById('statusFilter').value = '';
-            filterStylists();
+
+            // Show all rows
+            const tableRows = document.querySelectorAll('#stylistsTableBody tr');
+            tableRows.forEach(row => {
+                row.style.display = '';
+            });
+
+            // Restore original stats by reloading stylists
+            if (typeof loadStylists === 'function') {
+                loadStylists();
+            }
         }
 
         // Sort table function
@@ -4934,6 +4975,9 @@
                     case 'customers':
                         loadCustomers();
                         break;
+                    case 'payment-request':
+                        loadPaymentRequestsData();
+                        break;
                     case 'dashboard':
                         updateDashboardStats();
                         break;
@@ -6239,12 +6283,12 @@
 
         function updatePaymentRequestStats() {
             const pendingRequests = filteredPaymentRequests.filter(item => item.status === 'pending');
-            const totalPendingAmount = pendingRequests.reduce((sum, item) => sum + item.amount, 0);
+            const PendingAmount = pendingRequests.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
             const uniqueBanks = new Set(filteredPaymentRequests.map(item => item.bankName).filter(bank => bank !== 'N/A')).size;
             const uniqueBeneficiaries = new Set(filteredPaymentRequests.map(item => item.beneficiaryName)).size;
 
             document.getElementById('totalPendingRequests').textContent = pendingRequests.length;
-            document.getElementById('totalPendingAmount').textContent = `₦${totalPendingAmount.toLocaleString()}`;
+            document.getElementById('totalPendingAmount').textContent = `₦${PendingAmount.toLocaleString()}`;
             document.getElementById('uniqueBanks').textContent = uniqueBanks;
             document.getElementById('uniqueBeneficiaries').textContent = uniqueBeneficiaries;
         }
@@ -6639,6 +6683,17 @@
             const table = document.getElementById('customersTable');
             const rows = table.querySelectorAll('tbody tr');
 
+            let visibleCount = 0;
+            let todayCount = 0;
+            let weekCount = 0;
+            let monthCount = 0;
+
+            const today = new Date().toDateString();
+            const oneWeekAgo = new Date();
+            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+            const currentMonth = new Date().getMonth();
+            const currentYear = new Date().getFullYear();
+
             rows.forEach(row => {
                 if (row.cells.length === 1) return; // Skip "no data" rows
 
@@ -6646,20 +6701,91 @@
                 const location = row.cells[3].textContent.toLowerCase();
                 const stylistCode = row.cells[3].textContent;
                 const tokenNo = row.cells[0].textContent.toLowerCase();
+                const registrationText = row.cells[4].textContent;
 
                 const matchesSearch = customerName.includes(searchTerm) || tokenNo.includes(searchTerm);
                 const matchesLocation = !locationFilter || location.includes(locationFilter.toLowerCase());
                 const matchesStylist = !stylistFilter || stylistCode.includes(stylistFilter);
 
-                row.style.display = (matchesSearch && matchesLocation && matchesStylist) ? '' : 'none';
+                const isVisible = matchesSearch && matchesLocation && matchesStylist;
+                row.style.display = isVisible ? '' : 'none';
+
+                if (isVisible) {
+                    visibleCount++;
+
+                    // Extract date from registration text and calculate stats
+                    const dateMatch = registrationText.match(/\d{1,2}\/\d{1,2}\/\d{4}/);
+                    if (dateMatch) {
+                        const regDate = new Date(dateMatch[0]);
+
+                        // Today's count
+                        if (regDate.toDateString() === today) {
+                            todayCount++;
+                        }
+
+                        // This week count
+                        if (regDate >= oneWeekAgo) {
+                            weekCount++;
+                        }
+
+                        // This month count
+                        if (regDate.getMonth() === currentMonth && regDate.getFullYear() === currentYear) {
+                            monthCount++;
+                        }
+                    }
+                }
             });
+
+            // Update stats cards with filtered data
+            const totalCustomersEl = document.getElementById('totalCustomers');
+            const todayCustomersEl = document.getElementById('todayCustomers');
+            const weeklyCustomersEl = document.getElementById('weeklyCustomers');
+            const monthlyCustomersEl = document.getElementById('monthlyCustomers');
+
+            if (totalCustomersEl) totalCustomersEl.textContent = visibleCount;
+            if (todayCustomersEl) todayCustomersEl.textContent = todayCount;
+            if (weeklyCustomersEl) weeklyCustomersEl.textContent = weekCount;
+            if (monthlyCustomersEl) monthlyCustomersEl.textContent = monthCount;
+
+            // Also update main dashboard customer card if visible
+            const dashboardCustomerCard = document.querySelector('.dashboard-section .row .col-md-3:nth-child(2) .value');
+            if (dashboardCustomerCard) {
+                dashboardCustomerCard.textContent = visibleCount;
+            }
+        } function clearFilters() {
+            document.getElementById('stylistSearch').value = '';
+            document.getElementById('locationFilter').value = '';
+            document.getElementById('statusFilter').value = '';
+
+            // Show all rows
+            const table = document.getElementById('stylistsTable');
+            const rows = table.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                row.style.display = '';
+            });
+
+            // Restore original stats by reloading stylists
+            if (typeof loadStylists === 'function') {
+                loadStylists();
+            }
         }
 
         function clearCustomerFilters() {
             document.getElementById('customerSearch').value = '';
             document.getElementById('customerLocationFilter').value = '';
             document.getElementById('customerStylistFilter').value = '';
-            filterCustomers();
+
+            // Show all rows
+            const table = document.getElementById('customersTable');
+            const rows = table.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                row.style.display = '';
+            });
+
+            // Restore original stats by reloading customers
+            if (typeof loadCustomers === 'function') {
+                loadCustomers();
+            }
         }
 
         // Populate stylist filter dropdown
