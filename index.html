@@ -29,6 +29,7 @@
             -webkit-text-size-adjust: 100%;
             -ms-text-size-adjust: 100%;
             touch-action: manipulation;
+            height: 100%;
         }
 
         body {
@@ -37,6 +38,9 @@
             -webkit-tap-highlight-color: transparent;
             margin: 0;
             padding: 0;
+            min-height: 100vh;
+            overflow-y: auto;
+            overflow-x: hidden;
         }
 
         /* Prevent zoom on input focus in iOS */
@@ -233,6 +237,8 @@
             display: flex;
             flex-direction: column;
             min-height: 100vh;
+            overflow: visible;
+            /* Allow scrolling on all screens */
         }
 
         .navbar {
@@ -265,6 +271,10 @@
             margin-left: 0 !important;
             width: 100% !important;
             padding: 10px !important;
+            height: calc(100vh - 60px) !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            -webkit-overflow-scrolling: touch !important;
         }
 
         .mobile-device .table {
@@ -287,10 +297,64 @@
             font-size: 16px !important;
         }
 
+        /* Responsive CSS for mobile without class dependency */
+        @media screen and (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%) !important;
+                width: 100% !important;
+                max-width: 280px !important;
+                z-index: 1000 !important;
+            }
+
+            .sidebar.active {
+                transform: translateX(0) !important;
+            }
+
+            .content-area {
+                margin-left: 0 !important;
+                width: 100% !important;
+                padding: 10px !important;
+                height: calc(100vh - 60px) !important;
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
+                -webkit-overflow-scrolling: touch !important;
+                position: relative !important;
+            }
+
+            .main-content {
+                height: calc(100vh - 60px) !important;
+                overflow: hidden !important;
+            }
+
+            .table {
+                font-size: 0.7rem !important;
+            }
+
+            .table th,
+            .table td {
+                font-size: 0.7rem !important;
+                padding: 4px 6px !important;
+            }
+
+            .container-fluid {
+                padding: 0 8px !important;
+            }
+
+            .dashboard-container {
+                min-height: 100vh !important;
+                height: auto !important;
+                /* Allow natural height */
+                overflow: visible !important;
+                /* Allow scrolling */
+            }
+        }
+
         .main-content {
             display: flex;
             flex: 1;
-            overflow: hidden;
+            height: calc(100vh - 70px);
+            overflow: visible;
+            /* Allow content to scroll on all screens */
         }
 
         .sidebar {
@@ -298,9 +362,10 @@
             width: 250px;
             padding: 20px 0;
             box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
-            height: calc(100vh - 70px);
+            height: 100%;
             position: fixed;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             z-index: 99;
         }
 
@@ -309,7 +374,11 @@
             padding: 20px;
             margin-left: 250px;
             width: calc(100% - 250px);
-            overflow-y: auto;
+            height: calc(100vh - 70px);
+            /* Fixed height for proper scroll */
+            overflow: auto;
+            /* Allow both vertical and horizontal scrolling */
+            -webkit-overflow-scrolling: touch;
         }
 
         .sidebar .nav-link {
@@ -873,10 +942,12 @@
                         <label for="username"><i class="fas fa-user me-2"></i>Username</label>
                     </div>
 
-                    <div class="form-floating mb-3">
+                    <div class="form-floating mb-3 position-relative">
                         <input type="password" class="form-control" id="password"
-                            placeholder="Password minimum 6 characters" required>
+                            placeholder="Password minimum 6 characters" required style="padding-right: 45px;">
                         <label for="password"><i class="fas fa-lock me-2"></i>Password</label>
+                        <i class="fas fa-eye position-absolute" id="toggleLoginPassword"
+                            style="right: 15px; top: 50%; transform: translateY(-50%); color: #6c757d; cursor: pointer; z-index: 10; font-size: 16px;"></i>
                     </div>
 
                     <div class="form-check mb-3">
@@ -7768,17 +7839,49 @@
 
         // Password toggle functionality
         function initializePasswordToggle() {
+            // Handle main login password toggle
+            const toggleLoginPasswordIcon = document.getElementById('toggleLoginPassword');
+            if (toggleLoginPasswordIcon) {
+                toggleLoginPasswordIcon.addEventListener('click', function (e) {
+                    e.preventDefault(); // Prevent form submission
+                    const passwordInput = document.getElementById('password');
+
+                    if (passwordInput && passwordInput.type === 'password') {
+                        passwordInput.type = 'text';
+                        passwordInput.style.backgroundColor = '#343a40'; // Dark gray background
+                        passwordInput.style.color = '#f8f9fa'; // Very light gray text
+                        passwordInput.style.borderColor = '#495057'; // Dark gray border
+                        this.className = 'fas fa-eye-slash position-absolute';
+                        this.setAttribute('title', 'Hide password');
+                    } else if (passwordInput) {
+                        passwordInput.type = 'password';
+                        passwordInput.style.backgroundColor = ''; // Reset to default background
+                        passwordInput.style.color = ''; // Reset to default text color
+                        passwordInput.style.borderColor = ''; // Reset to default border
+                        this.className = 'fas fa-eye position-absolute';
+                        this.setAttribute('title', 'Show password');
+                    }
+                });
+            }
+
+            // Handle user management form password toggle (if exists)
             const togglePasswordBtn = document.getElementById('togglePassword');
             if (togglePasswordBtn) {
                 togglePasswordBtn.addEventListener('click', function () {
                     const passwordInput = document.getElementById('passwordInput');
                     const icon = this.querySelector('i');
 
-                    if (passwordInput.type === 'password') {
+                    if (passwordInput && passwordInput.type === 'password') {
                         passwordInput.type = 'text';
+                        passwordInput.style.backgroundColor = '#343a40'; // Dark gray background
+                        passwordInput.style.color = '#f8f9fa'; // Very light gray text
+                        passwordInput.style.borderColor = '#495057'; // Dark gray border
                         icon.className = 'fas fa-eye-slash';
-                    } else {
+                    } else if (passwordInput) {
                         passwordInput.type = 'password';
+                        passwordInput.style.backgroundColor = ''; // Reset to default background
+                        passwordInput.style.color = ''; // Reset to default text color
+                        passwordInput.style.borderColor = ''; // Reset to default border
                         icon.className = 'fas fa-eye';
                     }
                 });
@@ -8674,28 +8777,34 @@
         //                 }
         //             }
         //         `;
-        //         document.head.appendChild(style);
+        // Mobile detection and force mobile layout
+        function isMobileDevice() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
+        }
 
-        //         // Mobile detection and force mobile layout
-        //         function isMobileDevice() {
-        //             return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || window.innerWidth <= 768;
-        //         }
+        if (isMobileDevice()) {
+            document.body.classList.add('mobile-device');
 
-        //         if (isMobileDevice()) {
-        //             document.body.classList.add('mobile-device');
+            // Force mobile layout immediately
+            document.addEventListener('DOMContentLoaded', function () {
+                const contentArea = document.querySelector('.content-area');
+                if (contentArea) {
+                    contentArea.style.marginLeft = '0';
+                    contentArea.style.width = '100%';
+                    contentArea.style.padding = '10px';
+                    contentArea.style.height = 'calc(100vh - 60px)';
+                    contentArea.style.overflowY = 'auto';
+                    contentArea.style.overflowX = 'hidden';
+                    contentArea.style.webkitOverflowScrolling = 'touch';
+                }
 
-        //             // Force responsive tables
-        //             const tables = document.querySelectorAll('.table');
-        //             tables.forEach(table => {
-        //                 table.style.fontSize = '0.7rem';
-        //                 table.style.width = '100%';
-        //             });
-
-        //             // Force responsive sidebar
-        //             const sidebar = document.querySelector('.sidebar');
-        //             if (sidebar) {
-        //                 sidebar.style.transform = 'translateX(-100%)';
-        //             }
+                const mainContent = document.querySelector('.main-content');
+                if (mainContent) {
+                    mainContent.style.height = 'calc(100vh - 60px)';
+                    mainContent.style.overflow = 'hidden';
+                }
+            });
+        }
 
         //             // Force mobile content area
         //             const contentArea = document.querySelector('.content-area');
